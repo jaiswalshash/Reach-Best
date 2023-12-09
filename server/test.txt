@@ -1,0 +1,85 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const app = express();
+const PORT = process.env.PORT || 3000;
+const { MongoClient } = require('mongodb');
+
+// Connect to MongoDB
+// mongoose.connect('mongodb+srv://jaiswalshashank123:jaiswal12345@rb-db.xoktvzv.mongodb.net/book_matching', {
+//   useNewUrlParser: true,
+//   useUnifiedTopology: true,
+// });
+const uri = 'mongodb+srv://jaiswalshashank123:jaiswal12345@rb-db.xoktvzv.mongodb.net/book_matching'
+
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+async function getData() {
+  try {
+    await client.connect();
+    console.log('Connected to MongoDB');
+
+    const database = client.db('book_matching');
+    const collection = database.collection('books');
+
+    console.log(collection);
+
+    // Query to retrieve all documents in the "books" collection
+    const query = {};
+
+    // Fetch all documents from the collection
+    const result = await collection.find(query).toArray();
+
+    // Print the data
+    console.log(result);
+  } finally {
+    await client.close();
+    console.log('Connection to MongoDB closed');
+  }
+}
+
+getData();
+// Handle MongoDB connection errors
+mongoose.connection.on('error', console.error.bind(console, 'MongoDB connection error:'));
+
+app.use(express.json());
+
+
+app.post('/match_books', async (req, res) => {
+  const userAnswers = [req.body.question1, req.body.question2];
+
+  try {
+    // Fetch books from the database
+    const books = await Book.find();
+
+    // Calculate the difference of vectors and find the best match
+    let bestMatch = null;
+    let minDifference = Infinity;
+
+    books.forEach((book) => {
+      const bookVector = [book.mood, book.personality];
+      const difference = calculateDifference(userAnswers, bookVector);
+
+      if (difference < minDifference) {
+        minDifference = difference;
+        bestMatch = book;
+      }
+    });
+
+    res.json({ bestMatch });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message }); // Send the actual error message
+  }
+});
+
+// Calculate the difference of vectors
+function calculateDifference(vector1, vector2) {
+  return Math.sqrt(Math.pow(vector1[0] - vector2[0], 2) + Math.pow(vector1[1] - vector2[1], 2));
+}
+
+
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
